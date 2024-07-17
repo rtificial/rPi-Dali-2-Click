@@ -83,10 +83,11 @@ class DaliTransmitter:
         """
         Cancels the DALI transmitter.
         """
-        self.pi.wave_delete(self._start)
-        self.pi.wave_delete(self._stop)
-        self.pi.wave_delete(self._wid0)
-        self.pi.wave_delete(self._wid1)
+        if self.pi:
+            self.pi.wave_delete(self._start)
+            self.pi.wave_delete(self._stop)
+            self.pi.wave_delete(self._wid0)
+            self.pi.wave_delete(self._wid1)
 
 def print_menu():
     """
@@ -120,7 +121,7 @@ def set_color_temperature(transmitter):
 
         # Send commands to set color temperature following the switch sequence
         commands = [
-            0xfefe,  # Initial frame (broadcast)
+            #0xfefe,  # Initial frame (broadcast)
             0xa300 | lsb,  # Set LSB of Mirek
             0xc300 | msb,  # Set MSB of Mirek
             0xc108,  # Intermediate command
@@ -149,7 +150,8 @@ def main():
 
     def cleanup():
         transmitter.cancel()
-        pi.stop()
+        if pi:
+            pi.stop()
 
     atexit.register(cleanup)
 
@@ -179,6 +181,7 @@ def main():
                 set_color_temperature(transmitter)
             elif choice == '7':
                 print("Exiting...")
+                cleanup()
                 break
             else:
                 print("Invalid choice. Please try again.")
@@ -187,8 +190,7 @@ def main():
 
     except KeyboardInterrupt:
         print("Exiting...")
-
-    cleanup()
+        cleanup()
 
 if __name__ == '__main__':
     main()
