@@ -112,16 +112,17 @@ def set_color_temperature(transmitter):
     try:
         temp = int(input("Enter color temperature value (in Kelvin): "))
         mirek = int(1000000 / temp)  # Convert Kelvin to Mirek
+        print(f"Kelvin: {temp}, Mirek: {mirek}")
 
-        # Break down Mirek into MSB and LSB
-        msb = (mirek >> 8) & 0xFF
-        lsb = mirek & 0xFF
+        msb = mirek // 256
+        lsb = mirek % 256
+        print(f"MSB: {msb}, LSB: {lsb}")
 
         # Send commands to set color temperature following the switch sequence
         commands = [
             0xfefe,  # Initial frame (broadcast)
             0xa300 | lsb,  # Set LSB of Mirek
-            0xc300,  # Intermediate command
+            0xc300 | msb,  # Set MSB of Mirek
             0xc108,  # Intermediate command
             0xffe7,  # Intermediate command
             0xc108,  # Intermediate command
