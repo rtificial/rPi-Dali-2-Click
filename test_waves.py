@@ -7,7 +7,7 @@ import atexit
 
 class DaliTransmitter:
     """
-    A class to transmit Dali frames.
+    A class to transmit DALI frames.
     """
     def __init__(self, pi, tx_pin, te=417):
         self.pi = pi
@@ -18,43 +18,40 @@ class DaliTransmitter:
         self._make_waves()
 
         self.pi.set_mode(tx_pin, pigpio.OUTPUT)
-        self.pi.write(tx_pin, 0)  # Ensure the pin starts high
-        self.pi.set_pull_up_down(tx_pin, pigpio.PUD_OFF)
+        self.pi.write(tx_pin, 0)  # Ensure the pin starts high (idle state for DALI)
 
     def _make_waves(self):
         """
         Generate the basic '1' and '0' Manchester encoded waveforms.
         """
         wf = []
-        wf.append(pigpio.pulse(1<<self.tx_pin, 0, self.te))
-        wf.append(pigpio.pulse(0, 1<<self.tx_pin, self.te))
+        wf.append(pigpio.pulse(1 << self.tx_pin, 0, self.te))
+        wf.append(pigpio.pulse(0, 1 << self.tx_pin, self.te))
         self.pi.wave_add_generic(wf)
         self._start = self.pi.wave_create()
 
         wf = []
-        wf.append(pigpio.pulse(0, 1<<self.tx_pin, self.tstop))
+        wf.append(pigpio.pulse(0, 1 << self.tx_pin, self.tstop))
         self.pi.wave_add_generic(wf)
         self._stop = self.pi.wave_create()
 
         wf = []
-        wf.append(pigpio.pulse(0, 1<<self.tx_pin, self.te))
-        wf.append(pigpio.pulse(1<<self.tx_pin, 0, self.te))
+        wf.append(pigpio.pulse(0, 1 << self.tx_pin, self.te))
+        wf.append(pigpio.pulse(1 << self.tx_pin, 0, self.te))
         self.pi.wave_add_generic(wf)
         self._wid0 = self.pi.wave_create()
 
         wf = []
-        wf.append(pigpio.pulse(1<<self.tx_pin, 0, self.te))
-        wf.append(pigpio.pulse(0, 1<<self.tx_pin, self.te))
+        wf.append(pigpio.pulse(1 << self.tx_pin, 0, self.te))
+        wf.append(pigpio.pulse(0, 1 << self.tx_pin, self.te))
         self.pi.wave_add_generic(wf)
         self._wid1 = self.pi.wave_create()
 
     def send(self, code, bits=16, repeats=1):
         """
-        Transmits a Dali frame.
+        Transmits a DALI frame.
         """
         print(f"Sending DALI frame: {hex(code)}")
-
-        self.pi.write(self.tx_pin, 1)  # Bring the bus low before starting the transmission
         time.sleep(self.te / 1e6)  # Wait for a half bit time
 
         chain = [255, 0, self._start]
@@ -71,13 +68,16 @@ class DaliTransmitter:
 
         chain += [self._stop, 255, 1, repeats, 0]
 
+        start_time = time.time()
         self.pi.wave_chain(chain)
 
         while self.pi.wave_tx_busy():
             time.sleep(0.001)
 
         self.pi.write(self.tx_pin, 0)  # Set the bus high after the transmission
+        end_time = time.time()
         print("Transmission complete")
+        print(f"Total transmission time: {(end_time - start_time) * 1e6:.2f} µs")
 
     def cancel(self):
         """
@@ -89,8 +89,6 @@ class DaliTransmitter:
         self.pi.wave_delete(self._wid1)
 
 if __name__ == '__main__':
-    import argparse
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', help='specify the hostname', default='localhost')
     args = parser.parse_args()
