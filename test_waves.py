@@ -25,25 +25,25 @@ class DaliTransmitter:
         Generate the basic '1' and '0' Manchester encoded waveforms.
         """
         wf = []
-        wf.append(pigpio.pulse(1 << self.tx_pin, 0, self.te))
-        wf.append(pigpio.pulse(0, 1 << self.tx_pin, self.te))
+        wf.append(pigpio.pulse(1<<self.tx_pin, 0, self.te))
+        wf.append(pigpio.pulse(0, 1<<self.tx_pin, self.te))
         self.pi.wave_add_generic(wf)
         self._start = self.pi.wave_create()
 
         wf = []
-        wf.append(pigpio.pulse(0, 1 << self.tx_pin, self.tstop))
+        wf.append(pigpio.pulse(0, 1<<self.tx_pin, self.tstop))
         self.pi.wave_add_generic(wf)
         self._stop = self.pi.wave_create()
 
         wf = []
-        wf.append(pigpio.pulse(0, 1 << self.tx_pin, self.te))
-        wf.append(pigpio.pulse(1 << self.tx_pin, 0, self.te))
+        wf.append(pigpio.pulse(0, 1<<self.tx_pin, self.te))
+        wf.append(pigpio.pulse(1<<self.tx_pin, 0, self.te))
         self.pi.wave_add_generic(wf)
         self._wid0 = self.pi.wave_create()
 
         wf = []
-        wf.append(pigpio.pulse(1 << self.tx_pin, 0, self.te))
-        wf.append(pigpio.pulse(0, 1 << self.tx_pin, self.te))
+        wf.append(pigpio.pulse(1<<self.tx_pin, 0, self.te))
+        wf.append(pigpio.pulse(0, 1<<self.tx_pin, self.te))
         self.pi.wave_add_generic(wf)
         self._wid1 = self.pi.wave_create()
 
@@ -81,14 +81,62 @@ class DaliTransmitter:
 
     def cancel(self):
         """
-        Cancels the Dali transmitter.
+        Cancels the DALI transmitter.
         """
         self.pi.wave_delete(self._start)
         self.pi.wave_delete(self._stop)
         self.pi.wave_delete(self._wid0)
         self.pi.wave_delete(self._wid1)
 
-if __name__ == '__main__':
+def print_menu():
+    """
+    Prints the command menu.
+    """
+    print("\nSelect a command to broadcast to the DALI bus:")
+    print("1. OFF (0xFE00)")
+    print("2. MAX Brightness (0xFEFE)")
+    print("3. Set Brightness to 117/254 (0xFE75)")
+    print("4. Set Brightness to 37/254 (0xFE25)")
+    print("5. TOGGLE (0xFEFF)")
+    print("6. Set Color Temperature (Enter Value)")
+    print("7. EXIT")
+
+def get_command_choice():
+    """
+    Prompts the user for a command choice.
+    """
+    choice = input("Enter your choice (1-7): ")
+    return choice
+
+def set_color_temperature(transmitter):
+    try:
+        temp = int(input("Enter color temperature value (in Kelvin): "))
+        mirek = int(1000000 / temp)  # Convert Kelvin to Mirek
+
+        # Break down Mirek into MSB and LSB
+        msb = (mirek >> 8) & 0xFF
+        lsb = mirek & 0xFF
+
+        # Send commands to set color temperature following the switch sequence
+        commands = [
+            0xfefe,  # Initial frame (broadcast)
+            0xa300 | lsb,  # Set LSB of Mirek
+            0xc300,  # Intermediate command
+            0xc108,  # Intermediate command
+            0xffe7,  # Intermediate command
+            0xc108,  # Intermediate command
+            0xffe2  # Finalize command
+        ]
+
+        for cmd in commands:
+            transmitter.send(cmd)
+            time.sleep(0.1)  # Small delay between commands
+
+        print(f"Set color temperature to {temp}K (Mirek: {mirek})")
+    except ValueError:
+        print("Invalid input. Please enter a valid integer.")
+
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', help='specify the hostname', default='localhost')
     args = parser.parse_args()
@@ -108,18 +156,38 @@ if __name__ == '__main__':
 
     try:
         while True:
-            # Send OFF broadcast (0xFE00)
-            transmitter.send(0xFE00)
-            print("Broadcasted OFF command")
+            print_menu()
+            choice = get_command_choice()
 
-            time.sleep(1)
+            if choice == '1':
+                transmitter.send(0xFE00)
+                print("Broadcasted OFF command")
+            elif choice == '2':
+                transmitter.send(0xFEFE)
+                print("Broadcasted MAX Brightness command")
+            elif choice == '3':
+                transmitter.send(0xFE75)
+                print("Broadcasted Brightness 117/254")
+            elif choice == '4':
+                transmitter.send(0xFE25)
+                print("Broadcasted Brightness 37/254")
+            elif choice == '5':
+                transmitter.send(0xFEFF)
+                print("Broadcasted TOGGLE command")
+            elif choice == '6':
+                set_color_temperature(transmitter)
+            elif choice == '7':
+                print("Exiting...")
+                break
+            else:
+                print("Invalid choice. Please try again.")
 
-            # Send MAX brightness broadcast (0xFEFE)
-            transmitter.send(0xFEFE)
-            print("Broadcasted MAX brightness command")
+            time.sleep(1)  # Optional: wait 1 second before showing the menu again
 
-            time.sleep(1)
     except KeyboardInterrupt:
         print("Exiting...")
 
     cleanup()
+
+if __name__ == '__main__':
+    main()
