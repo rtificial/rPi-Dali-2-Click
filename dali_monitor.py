@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-
+# Don't forget to set the RX PIN
+# On the Dali 2 Click on top of a MikroBUS Pi Hat, the RX Pin is 6
 import time
 import pigpio
 import argparse
