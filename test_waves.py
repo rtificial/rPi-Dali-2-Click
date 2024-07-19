@@ -122,12 +122,20 @@ def set_color_temperature(transmitter):
         # Send commands to set color temperature following the switch sequence
         commands = [
             #0xfefe,  # Initial frame (broadcast)
-            0xa300 | lsb,  # Set LSB of Mirek
-            0xc300 | msb,  # Set MSB of Mirek
+            #0xa300 | lsb,  # Set LSB of Mirek
+            #0xc300 | msb,  # Set MSB of Mirek
+            #0xc108,  # Intermediate command
+            #0xe700
+            #0xffe7  # Intermediate command
+            #0xc108,  # Intermediate command
+            #0xffe2  # Finalize command
+            #0xfefe,  # Initial frame (broadcast)
+            0xa300 | lsb,  # Set LSB of Mired
+            0xc300 | msb,  # Set MSB of Mired
             0xc108,  # Intermediate command
-            0xffe7,  # Intermediate command
-            0xc108,  # Intermediate command
-            0xffe2  # Finalize command
+            0xffe7  # Intermediate command
+            #0xc108,  # Intermediate command
+            #0xffe2  # Finalize command
         ]
 
         for cmd in commands:
